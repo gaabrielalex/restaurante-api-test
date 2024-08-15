@@ -15,7 +15,7 @@ import io.restassured.http.Method;
 import io.restassured.response.Response;
 import java.time.Instant;
 
-public class ProdutoServicoTest1 {
+public class ProdutoServicoTest {
 
     @BeforeAll
     public static void setup() {
