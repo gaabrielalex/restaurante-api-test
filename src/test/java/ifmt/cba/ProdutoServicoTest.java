@@ -74,7 +74,7 @@ public class ProdutoServicoTest {
             .then()
                 .log().all()
                 .statusCode(400)
-                .body("texto", Matchers.is("Ja existe esse produto"));
+                .body("erro", Matchers.is("Ja existe esse produto"));
     }
 
     @Test
@@ -145,7 +145,7 @@ public class ProdutoServicoTest {
             .then()
                 .log().all()
                 .statusCode(400)
-                .body("texto", Matchers.is("Nao existe esse produto"));
+                .body("erro", Matchers.is("Nao existe esse produto"));
     }
 
     @Test
@@ -191,7 +191,7 @@ public class ProdutoServicoTest {
             .then()
                 .log().all()
                 .statusCode(400)
-                .body("texto", Matchers.is("Nao existe esse produto"));
+                .body("erro", Matchers.is("Nao existe esse produto"));
     }
 
     @Test
@@ -276,7 +276,7 @@ public class ProdutoServicoTest {
     }
     
     public static GrupoAlimentarDTO obterGrupoAlimentarValidoDaApi() throws Exception {
-        Response response = RestAssured.request(Method.GET, ApiUtils.urlBase + "/grupoalimentar/codigo/1");
+        Response response = RestAssured.request(Method.GET, ApiUtils.urlBase + "/grupo-alimentar/1");
         if (response.getStatusCode() != 200) {
             throw new Exception("Erro ao obter grupo alimentar válido"); 
         } else {
