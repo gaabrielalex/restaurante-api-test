@@ -286,7 +286,7 @@ public class ProdutoServicoTest {
     }
 
     public static ProdutoDTO obterProdutoValidoDaApi(int codigo) throws Exception {
-        Response response = RestAssured.request(Method.GET, ApiUtils.urlBase + RestAssured.basePath + "/" + codigo);
+        Response response = RestAssured.request(Method.GET, ApiUtils.urlBase + "/produto/" + codigo);
         if (response.getStatusCode() != 200) {
             throw new Exception("Erro ao obter produto válido"); 
         } else {
