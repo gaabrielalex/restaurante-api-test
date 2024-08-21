@@ -4,7 +4,6 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
 public class TipoPreparoDTO {
-
     private int codigo;
     private String descricao;
     private String link;

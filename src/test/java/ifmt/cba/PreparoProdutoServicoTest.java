@@ -9,7 +9,6 @@ import com.google.gson.Gson;
 
 import ifmt.cba.dto.PreparoProdutoDTO;
 import ifmt.cba.dto.ProdutoDTO;
-import ifmt.cba.dto.TipoPreparoDTO;
 import ifmt.cba.utils.ApiUtils;
 import io.restassured.RestAssured;
 import io.restassured.http.Method;
@@ -22,7 +21,6 @@ public class PreparoProdutoServicoTest {
     
     @BeforeAll
     public static void setup() {
-        // Configuração básica para o Rest Assured
         RestAssured.baseURI = ApiUtils.urlBase;
         RestAssured.basePath = "/preparo-produto";
     }
@@ -280,7 +278,7 @@ public class PreparoProdutoServicoTest {
         preparoProduto.setValorPreparo(20.0f);
 
         preparoProduto.setProduto(ProdutoServicoTest.obterProdutoValidoDaApi(1));
-        preparoProduto.setTipoPreparo(CadastrarTipoPreparo());
+        preparoProduto.setTipoPreparo(TipoPreparoServicoTest.CadastrarTipoPreparo());
 
         return preparoProduto;
     }
@@ -293,34 +291,5 @@ public class PreparoProdutoServicoTest {
             Gson gson = new Gson();
             return gson.fromJson(response.getBody().asString(), PreparoProdutoDTO.class);
         }
-    }
-
-    public static TipoPreparoDTO obterTipoPreparoValidoDaApi(int codigo) throws Exception {
-        Response response = RestAssured.request(Method.GET, ApiUtils.urlBase + "/tipo-preparo/" + codigo);
-        if (response.getStatusCode() != 200) {
-            throw new Exception("Erro ao obter produto válido"); 
-        } else {
-            Gson gson = new Gson();
-            return gson.fromJson(response.getBody().asString(), TipoPreparoDTO.class);
-        }
-    }
-
-    public static TipoPreparoDTO CadastrarTipoPreparo() {
-        Gson gson = new Gson();
-        TipoPreparoDTO tipoPreparo = new TipoPreparoDTO();
-        tipoPreparo.setDescricao("TipoP" + Instant.now());
-
-        Response responsePost = RestAssured.given()
-            .log().all()
-            .contentType("application/json")
-            .body(tipoPreparo)
-            .when()
-                .log().all()
-            .post(ApiUtils.urlBase + "/tipo-preparo")       
-            .then()
-                .log().all()
-                .extract().response();
-        Assertions.assertEquals(200, responsePost.getStatusCode());
-        return gson.fromJson(responsePost.getBody().asString(), TipoPreparoDTO.class);
     }
 }
