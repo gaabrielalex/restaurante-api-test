@@ -16,7 +16,7 @@ public class LocalTimeAdapter extends TypeAdapter<LocalTime> {
     @Override
     public void write(JsonWriter out, LocalTime value) throws IOException {
         if (value != null) {
-            out.value(value.format(formatterWithMillis));
+            out.value(value.format(formatterWithMillis)); // Mantém a formatação com milissegundos
         } else {
             out.nullValue();
         }
@@ -26,13 +26,17 @@ public class LocalTimeAdapter extends TypeAdapter<LocalTime> {
     public LocalTime read(JsonReader in) throws IOException {
         String time = in.nextString();
         try {
-            // Primeiro tenta parsear com milissegundos
+            // Tenta parsear com milissegundos
             return LocalTime.parse(time, formatterWithMillis);
-        } catch (DateTimeParseException e) {
-            // Se falhar, tenta parsear sem milissegundos
-            return LocalTime.parse(time, formatterWithoutMillis);
+        } catch (DateTimeParseException e1) {
+            try {
+                // Tenta parsear sem milissegundos
+                LocalTime parsedTime = LocalTime.parse(time, formatterWithoutMillis);
+                // Adiciona três casas decimais ".000" se não houver milissegundos
+                return LocalTime.parse(parsedTime.format(formatterWithMillis), formatterWithMillis);
+            } catch (DateTimeParseException e2) {
+                throw new IOException("Failed to parse LocalTime: " + time, e2);
+            }
         }
     }
 }
-
-

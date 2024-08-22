@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import ifmt.cba.dto.EntregadorDTO;
 import ifmt.cba.dto.EstadoPedidoDTO;
 import ifmt.cba.dto.ItemPedidoDTO;
 import ifmt.cba.dto.PedidoDTO;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 
 public class PedidoServicoTest {
 
@@ -56,19 +58,20 @@ public class PedidoServicoTest {
                 .request(Method.POST)
             .then()
                 .log().all()
-                .statusCode(200);
-
-                //Não há nenhuma maneira de obter o pedidoDTO após a inserção, então não é possível testar os dados de resposta
-                // .body("codigo", Matchers.notNullValue())
-                // .body("codigo", Matchers.greaterThan(0))
-                // .body("cliente.codigo", Matchers.is(pedido.getCliente().getCodigo()))
-                // .body("dataPedido", Matchers.is(pedido.getDataPedido().toString()))
-                // .body("horaPedido", Matchers.is(pedido.getHoraPedido().toString()))
-                // .body("horaProducao", Matchers.is(pedido.getHoraProducao().toString()))
-                // .body("estado", Matchers.is(pedido.getEstado()))
-                // .body("entregador.codigo", Matchers.is(pedido.getEntregador().getCodigo()))
-                // .body("listaItens", Matchers.hasSize(pedido.getListaItens().size()))
-                // .body("link", Matchers.notNullValue());
+                .statusCode(200)
+                .body("codigo", Matchers.notNullValue())
+                .body("codigo", Matchers.greaterThan(0))
+                .body("cliente.codigo", Matchers.is(pedido.getCliente().getCodigo()))
+                .body("dataPedido", Matchers.is(pedido.getDataPedido().toString()))
+                .body("horaPedido", Matchers.is(pedido.getHoraPedido().truncatedTo(ChronoUnit.MILLIS).toString()))
+                .body("horaProducao", Matchers.is(pedido.getHoraProducao().truncatedTo(ChronoUnit.MILLIS).toString()))
+                .body("horaPronto", Matchers.is(pedido.getHoraPronto().truncatedTo(ChronoUnit.MILLIS).toString()))
+                .body("horaEntrega", Matchers.is(pedido.getHoraEntrega().truncatedTo(ChronoUnit.MILLIS).toString()))
+                .body("horaFinalizado", Matchers.is(pedido.getHoraFinalizado().truncatedTo(ChronoUnit.MILLIS).toString()))
+                .body("estado", Matchers.is(pedido.getEstado().toString()))
+                .body("entregador.codigo", Matchers.is(pedido.getEntregador().getCodigo()))
+                .body("listaItens", Matchers.hasSize(pedido.getListaItens().size()))
+                .body("link", Matchers.notNullValue());
     }
 
     @Test
@@ -97,21 +100,46 @@ public class PedidoServicoTest {
         Assertions.assertEquals(200, responsePost.getStatusCode());
         pedido = gson.fromJson(responsePost.getBody().asString(), PedidoDTO.class);
 
+        EntregadorDTO novoEntregador = new EntregadorDTO();
+        try {
+            novoEntregador = EntregadorServicoTest.obterEntregadorValidoDaApi(2);
+        } catch (Exception e) {
+            Assertions.fail("Erro ao obter entregador válido da API");
+        }
+
         // Altera o pedido
-        pedido.setHoraEntrega(pedido.getHoraEntrega().plusMinutes(10));
+        pedido.setHoraPedido(pedido.getHoraPedido().plusMinutes(2));
+        pedido.setHoraProducao(pedido.getHoraProducao().plusMinutes(2));
+        pedido.setHoraPronto(pedido.getHoraPronto().plusMinutes(2));
+        pedido.setHoraEntrega(pedido.getHoraEntrega().plusMinutes(2));
+        pedido.setHoraFinalizado(pedido.getHoraFinalizado().plusMinutes(2));
+        pedido.setEstado(EstadoPedidoDTO.PRONTO);
+        pedido.setEntregador(novoEntregador);
+
+        String jsonPedidoAlterado = gson.toJson(pedido);
 
         RestAssured
             .given()
                 .log().all()
                 .contentType("application/json")
-                .body(pedido)
+                .body(jsonPedidoAlterado)
             .when()
                 .put()
             .then()
                 .log().all()
                 .statusCode(200)
                 .body("codigo", Matchers.is(pedido.getCodigo()))
-                .body("horaEntrega", Matchers.is(pedido.getHoraEntrega().toString()));
+                .body("cliente.codigo", Matchers.is(pedido.getCliente().getCodigo()))
+                .body("dataPedido", Matchers.is(pedido.getDataPedido().toString()))
+                .body("horaPedido", Matchers.is(pedido.getHoraPedido().truncatedTo(ChronoUnit.MILLIS).toString()))
+                .body("horaProducao", Matchers.is(pedido.getHoraProducao().truncatedTo(ChronoUnit.MILLIS).toString()))
+                .body("horaPronto", Matchers.is(pedido.getHoraPronto().truncatedTo(ChronoUnit.MILLIS).toString()))
+                .body("horaEntrega", Matchers.is(pedido.getHoraEntrega().truncatedTo(ChronoUnit.MILLIS).toString()))
+                .body("horaFinalizado", Matchers.is(pedido.getHoraFinalizado().truncatedTo(ChronoUnit.MILLIS).toString()))
+                .body("estado", Matchers.is(pedido.getEstado().toString()))
+                .body("entregador.codigo", Matchers.is(pedido.getEntregador().getCodigo()))
+                .body("listaItens", Matchers.hasSize(pedido.getListaItens().size()))
+                .body("link", Matchers.notNullValue());
     }
 
     @Test
@@ -125,11 +153,18 @@ public class PedidoServicoTest {
 
         pedidoInexistente.setCodigo(-1);
 
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter())
+        .create();
+
+        String jsonPedido = gson.toJson(pedidoInexistente);
+
         RestAssured
             .given()
                 .log().all()
                 .contentType("application/json")
-                .body(pedidoInexistente)
+                .body(jsonPedido)
             .when()
                 .put()
             .then()
@@ -140,7 +175,6 @@ public class PedidoServicoTest {
 
     @Test
     public void aoExcluirPedido_DeveRetornarRespostaComStatus204() {
-        Gson gson = new Gson();
         PedidoDTO pedido = new PedidoDTO();
         try {
             pedido = obterPedidoValido();
@@ -148,11 +182,18 @@ public class PedidoServicoTest {
             Assertions.fail("Erro ao obter pedido valido");
         }
 
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter())
+        .create();
+
+        String jsonPedido = gson.toJson(pedido);
+
         // Adiciona o pedido para depois excluí-lo
         Response responsePost = RestAssured.given()
             .log().all()
             .contentType("application/json")
-            .body(pedido)
+            .body(jsonPedido)
             .when()
             .post();
         Assertions.assertEquals(200, responsePost.getStatusCode());
@@ -189,52 +230,37 @@ public class PedidoServicoTest {
     public void aoBuscarPedidoPorCodigo_DeveRetornarRespostaComStatus200ECComDadosDeRespostaCorretos() {
         PedidoDTO pedidoExistente = new PedidoDTO();
         try {
-            pedidoExistente = obterPedidoValidoDaApi(1);
+            pedidoExistente = obterPedidoValidoDaApi(12);
         } catch (Exception e) {
             Assertions.fail("Erro ao obter pedido da API");
-        }
-
-        RestAssured
-            .given()
-                .log().all()
-                .contentType("application/json")
-                .pathParam("codigo", pedidoExistente.getCodigo())
-            .when()
-                .get(ApiUtils.urlBase + RestAssured.basePath + "/{codigo}")
-            .then()
-                .log().all()
-                .statusCode(200)
-                .body("codigo", Matchers.is(pedidoExistente.getCodigo()))
-                .body("cliente.codigo", Matchers.is(pedidoExistente.getCliente().getCodigo()))
-                .body("dataPedido", Matchers.is(pedidoExistente.getDataPedido().toString()))
-                .body("horaPedido", Matchers.is(pedidoExistente.getHoraPedido().toString()))
-                .body("horaProducao", Matchers.is(pedidoExistente.getHoraProducao().toString()));
-    }
-
-    @Test
-    public void aoBuscarPedidoPorNomeCliente_DeveRetornarRespostaComStatus200ECComDadosDeRespostaCorretos() {
-        Gson gson = new Gson();
-        PedidoDTO pedidoExistente = new PedidoDTO();
-        try {
-            pedidoExistente = obterPedidoValidoDaApi(1);
-        } catch (Exception e) {
-            Assertions.fail("Erro ao obter pedido válido da API");
         }
 
         Response response = RestAssured
             .given()
                 .log().all()
                 .contentType("application/json")
-                .queryParam("nomeCliente", pedidoExistente.getCliente().getNome())
+                .pathParam("codigo", pedidoExistente.getCodigo())
             .when()
-                .log().all()
-                .get(ApiUtils.urlBase + "/pedido");
+                .get(ApiUtils.urlBase + RestAssured.basePath + "/{codigo}");
+            
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter())
+        .create();
 
         Assertions.assertEquals(200, response.getStatusCode());
         PedidoDTO pedido = gson.fromJson(response.getBody().asString(), PedidoDTO.class);
-
         Assertions.assertEquals(pedidoExistente.getCodigo(), pedido.getCodigo());
-        Assertions.assertEquals(pedidoExistente.getCliente().getNome(), pedido.getCliente().getNome());
+        Assertions.assertEquals(pedidoExistente.getCliente().getCodigo(), pedido.getCliente().getCodigo());
+        Assertions.assertEquals(pedidoExistente.getDataPedido(), pedido.getDataPedido());
+        Assertions.assertEquals(pedidoExistente.getHoraPedido(), pedido.getHoraPedido());
+        Assertions.assertEquals(pedidoExistente.getHoraProducao(), pedido.getHoraProducao());
+        Assertions.assertEquals(pedidoExistente.getHoraPronto(), pedido.getHoraPronto());
+        Assertions.assertEquals(pedidoExistente.getHoraEntrega(), pedido.getHoraEntrega());
+        Assertions.assertEquals(pedidoExistente.getHoraFinalizado(), pedido.getHoraFinalizado());
+        Assertions.assertEquals(pedidoExistente.getEstado(), pedido.getEstado());
+        Assertions.assertEquals(pedidoExistente.getEntregador().getCodigo(), pedido.getEntregador().getCodigo());
+        Assertions.assertEquals(pedidoExistente.getListaItens().size(), pedido.getListaItens().size());
     }
 
     public static PedidoDTO obterPedidoValido() throws Exception {

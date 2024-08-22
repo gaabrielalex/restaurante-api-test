@@ -216,7 +216,7 @@ public class EntregadorServicoTest {
 
     public static EntregadorDTO obterEntregadorValido() {
         EntregadorDTO entregador = new EntregadorDTO();
-        entregador.setNome("Entreg" + Instant.now());
+        entregador.setNome("Ent" + Instant.now());
         entregador.setRG(("R" + Instant.now().getEpochSecond()));
         entregador.setCPF("C" + Instant.now().getEpochSecond());
         entregador.setTelefone("T" + Instant.now().getEpochSecond());
