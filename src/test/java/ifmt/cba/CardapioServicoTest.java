@@ -35,14 +35,14 @@ public class CardapioServicoTest {
         }
 
         RestAssured
-            .given()
+                .given()
                 .log().all()
                 .contentType("application/json")
                 .body(cardapio)
-            .when()
+                .when()
                 .log().all()
                 .request(Method.POST)
-            .then()
+                .then()
                 .log().all()
                 .statusCode(200)
                 .body("codigo", Matchers.notNullValue())
@@ -62,13 +62,13 @@ public class CardapioServicoTest {
         }
 
         RestAssured
-            .given()
+                .given()
                 .log().all()
                 .contentType("application/json")
                 .body(cardapioExistente)
-            .when()
+                .when()
                 .post()
-            .then()
+                .then()
                 .log().all()
                 .statusCode(400)
                 .body("erro", Matchers.is("Ja existe esse cardapio"));
@@ -86,11 +86,11 @@ public class CardapioServicoTest {
 
         // Adiciona o cardápio para depois alterá-lo
         Response responsePost = RestAssured.given()
-            .log().all()
-            .contentType("application/json")
-            .body(cardapio)
-            .when()
-            .post();
+                .log().all()
+                .contentType("application/json")
+                .body(cardapio)
+                .when()
+                .post();
         Assertions.assertEquals(200, responsePost.getStatusCode());
         cardapio = gson.fromJson(responsePost.getBody().asString(), CardapioDTO.class);
 
@@ -98,13 +98,13 @@ public class CardapioServicoTest {
         cardapio.setNome(cardapio.getNome() + "-Alt");
 
         RestAssured
-            .given()
+                .given()
                 .log().all()
                 .contentType("application/json")
                 .body(cardapio)
-            .when()
+                .when()
                 .put()
-            .then()
+                .then()
                 .log().all()
                 .statusCode(200)
                 .body("codigo", Matchers.is(cardapio.getCodigo()))
@@ -122,13 +122,13 @@ public class CardapioServicoTest {
         cardapioInexistente.setCodigo(-1);
 
         RestAssured
-            .given()
+                .given()
                 .log().all()
                 .contentType("application/json")
                 .body(cardapioInexistente)
-            .when()
+                .when()
                 .put()
-            .then()
+                .then()
                 .log().all()
                 .statusCode(400)
                 .body("erro", Matchers.is("Nao existe esse cardapio"));
@@ -146,22 +146,22 @@ public class CardapioServicoTest {
 
         // Adiciona o cardápio para depois excluí-lo
         Response responsePost = RestAssured.given()
-            .log().all()
-            .contentType("application/json")
-            .body(cardapio)
-            .when()
-            .post();
+                .log().all()
+                .contentType("application/json")
+                .body(cardapio)
+                .when()
+                .post();
         Assertions.assertEquals(200, responsePost.getStatusCode());
         cardapio = gson.fromJson(responsePost.getBody().asString(), CardapioDTO.class);
 
         RestAssured
-            .given()
+                .given()
                 .log().all()
                 .contentType("application/json")
                 .pathParam("codigo", cardapio.getCodigo())
-            .when()
+                .when()
                 .delete(ApiUtils.urlBase + RestAssured.basePath + "/{codigo}")
-            .then()
+                .then()
                 .log().all()
                 .statusCode(204);
     }
@@ -169,13 +169,13 @@ public class CardapioServicoTest {
     @Test
     public void aoExcluirCardapioInexistente_DeveRetornarRespostaComStatus400EMensagemDeErroCorrespodente() {
         RestAssured
-            .given()
+                .given()
                 .log().all()
                 .contentType("application/json")
                 .pathParam("codigo", -1)
-            .when()
+                .when()
                 .delete(ApiUtils.urlBase + RestAssured.basePath + "/{codigo}")
-            .then()
+                .then()
                 .log().all()
                 .statusCode(400)
                 .body("erro", Matchers.is("Nao existe esse cardapio"));
@@ -183,6 +183,7 @@ public class CardapioServicoTest {
 
     @Test
     public void aoBuscarCardapioPorCodigo_DeveRetornarRespostaComStatus200ECComDadosDeRespostaCorretos() {
+        Gson gson = new Gson();
         CardapioDTO cardapioExistente = new CardapioDTO();
         try {
             cardapioExistente = obterCardapioValidoDaApi(1);
@@ -190,20 +191,23 @@ public class CardapioServicoTest {
             Assertions.fail("Erro ao obter cardápio da API");
         }
 
-        RestAssured
-            .given()
+        Response response = RestAssured
+                .given()
                 .log().all()
                 .contentType("application/json")
                 .pathParam("codigo", cardapioExistente.getCodigo())
-            .when()
-                .get(ApiUtils.urlBase + RestAssured.basePath + "/{codigo}")
-            .then()
-                .log().all()
-                .statusCode(200)
-                .body("codigo", Matchers.is(cardapioExistente.getCodigo()))
-                .body("nome", Matchers.is(cardapioExistente.getNome()))
-                .body("descricao", Matchers.is(cardapioExistente.getDescricao()))
-                .body("link", Matchers.is(cardapioExistente.getLink()));
+                .when()
+                .get(ApiUtils.urlBase + RestAssured.basePath + "/{codigo}");
+
+        Assertions.assertEquals(200, response.getStatusCode());
+        CardapioDTO cardapio = gson.fromJson(response.getBody().asString(), CardapioDTO.class);
+
+        Assertions.assertEquals(cardapioExistente.getCodigo(), cardapio.getCodigo());
+        Assertions.assertEquals(cardapioExistente.getNome(), cardapio.getNome());
+        Assertions.assertEquals(cardapioExistente.getDescricao(), cardapio.getDescricao());
+        Assertions.assertEquals(cardapioExistente.getLink(), cardapio.getLink());
+        Assertions.assertEquals(cardapioExistente.getListaPreparoProduto().size(),
+                cardapio.getListaPreparoProduto().size());
     }
 
     @Test
@@ -217,20 +221,24 @@ public class CardapioServicoTest {
         }
 
         Response response = RestAssured
-            .given()
+                .given()
                 .log().all()
                 .contentType("application/json")
                 .queryParam("nome", cardapioExistente.getNome())
-            .when()
+                .when()
                 .log().all()
                 .get(ApiUtils.urlBase + "/cardapio");
 
         Assertions.assertEquals(200, response.getStatusCode());
         CardapioDTO[] cardapios = gson.fromJson(response.getBody().asString(), CardapioDTO[].class);
+        CardapioDTO cardapio = cardapios[0];
 
-        Assertions.assertTrue(cardapios.length > 0, "Nenhum cardápio encontrado com o nome especificado");
-        Assertions.assertEquals(cardapioExistente.getCodigo(), cardapios[0].getCodigo());
-        Assertions.assertEquals(cardapioExistente.getNome(), cardapios[0].getNome());
+        Assertions.assertEquals(cardapioExistente.getCodigo(), cardapio.getCodigo());
+        Assertions.assertEquals(cardapioExistente.getNome(), cardapio.getNome());
+        Assertions.assertEquals(cardapioExistente.getDescricao(), cardapio.getDescricao());
+        Assertions.assertEquals(cardapioExistente.getLink(), cardapio.getLink());
+        Assertions.assertEquals(cardapioExistente.getListaPreparoProduto().size(),
+                cardapio.getListaPreparoProduto().size());
     }
 
     public static CardapioDTO obterCardapioValido() throws Exception {

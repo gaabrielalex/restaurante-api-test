@@ -57,4 +57,52 @@ public class CardapioDTO {
     public String toString() {
         return ToStringBuilder.reflectionToString(this, ToStringStyle.JSON_STYLE);
     }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + codigo;
+        result = prime * result + ((nome == null) ? 0 : nome.hashCode());
+        result = prime * result + ((descricao == null) ? 0 : descricao.hashCode());
+        result = prime * result + ((listaPreparoProduto == null) ? 0 : listaPreparoProduto.hashCode());
+        result = prime * result + ((link == null) ? 0 : link.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        CardapioDTO other = (CardapioDTO) obj;
+        if (codigo != other.codigo)
+            return false;
+        if (nome == null) {
+            if (other.nome != null)
+                return false;
+        } else if (!nome.equals(other.nome))
+            return false;
+        if (descricao == null) {
+            if (other.descricao != null)
+                return false;
+        } else if (!descricao.equals(other.descricao))
+            return false;
+        if (listaPreparoProduto == null) {
+            if (other.listaPreparoProduto != null)
+                return false;
+        } else if (!listaPreparoProduto.equals(other.listaPreparoProduto))
+            return false;
+        if (link == null) {
+            if (other.link != null)
+                return false;
+        } else if (!link.equals(other.link))
+            return false;
+        return true;
+    }
+
+    
 }
