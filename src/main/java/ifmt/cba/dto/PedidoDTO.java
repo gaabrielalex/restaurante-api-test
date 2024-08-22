@@ -8,7 +8,6 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
 public class PedidoDTO {
-
     private int codigo;
     private ClienteDTO cliente;
     private LocalDate dataPedido;
