@@ -263,6 +263,143 @@ public class PedidoServicoTest {
         Assertions.assertEquals(pedidoExistente.getListaItens().size(), pedido.getListaItens().size());
     }
 
+    @Test
+    public void aoAlterarItemPedido_DeveRetornarRespostaComStatus200ECComDadosDeRespostaCorretos() {
+        PedidoDTO pedido = new PedidoDTO();
+        try {
+            pedido = obterPedidoValido();
+        } catch (Exception e) {
+            Assertions.fail("Erro ao obter pedido valido");
+        }
+
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter())
+        .create();
+
+        String jsonPedido = gson.toJson(pedido);
+
+        // Adiciona o pedido para depois alterá-lo
+        Response responsePost = RestAssured.given()
+            .log().all()
+            .contentType("application/json")
+            .body(jsonPedido)
+            .when()
+            .post();
+        Assertions.assertEquals(200, responsePost.getStatusCode());
+        pedido = gson.fromJson(responsePost.getBody().asString(), PedidoDTO.class);
+
+        ItemPedidoDTO itemPedidoAlterado = pedido.getListaItens().get(0);
+        itemPedidoAlterado.setQuantidadePorcao(5);
+        try {
+            itemPedidoAlterado.setPreparoProduto(PreparoProdutoServicoTest.obterPreparoProdutoValidoDaApi(3));
+        } catch (Exception e) {
+            Assertions.fail("Erro ao obter preparo de produto valido da API");
+        }
+        
+        String jsonItemPedidoAlterado = gson.toJson(itemPedidoAlterado);
+
+        RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+                .body(jsonItemPedidoAlterado)
+            .when()
+                .put(ApiUtils.urlBase + RestAssured.basePath + "/item")
+            .then()
+                .log().all()
+                .statusCode(200)
+                .body("preparoProduto.codigo", Matchers.is(itemPedidoAlterado.getPreparoProduto().getCodigo()))
+                .body("preparoProduto.nome", Matchers.is(itemPedidoAlterado.getPreparoProduto().getNome()))
+                .body("quantidadePorcao", Matchers.is(itemPedidoAlterado.getQuantidadePorcao()));
+    }
+
+    @Test
+    public void aoAlterarItemPedidoInexistente_DeveRetornarRespostaComStatus400EMensagemDeErroCorrespodente() {
+        ItemPedidoDTO itemPedidoInexistente = new ItemPedidoDTO();
+        try {
+            itemPedidoInexistente = obterItemPedidoValido(1);
+        } catch (Exception e) {
+            Assertions.fail("Erro ao obter item de pedido valido");
+        }
+
+        itemPedidoInexistente.setCodigo(-1);
+
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter())
+        .create();
+
+        String jsonItemPedido = gson.toJson(itemPedidoInexistente);
+
+        RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+                .body(jsonItemPedido)
+            .when()
+                .put(ApiUtils.urlBase + RestAssured.basePath + "/item")
+            .then()
+                .log().all()
+                .statusCode(400)
+                .body("erro", Matchers.is("Nao existe esse item de pedido"));
+    }
+
+    @Test
+    public void aoExcluirItemPedido_DeveRetornarRespostaComStatus204() {
+        PedidoDTO pedido = new PedidoDTO();
+        try {
+            pedido = obterPedidoValido();
+        } catch (Exception e) {
+            Assertions.fail("Erro ao obter pedido valido");
+        }
+
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter())
+        .create();
+
+        String jsonPedido = gson.toJson(pedido);
+
+        // Adiciona o pedido para depois excluir um item de pedido
+        Response responsePost = RestAssured.given()
+            .log().all()
+            .contentType("application/json")
+            .body(jsonPedido)
+            .when()
+            .post();
+        Assertions.assertEquals(200, responsePost.getStatusCode());
+        pedido = gson.fromJson(responsePost.getBody().asString(), PedidoDTO.class);
+
+        ItemPedidoDTO itemPedido = pedido.getListaItens().get(0);
+
+        RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+                .pathParam("codigo", itemPedido.getCodigo())
+            .when()
+                .delete(ApiUtils.urlBase + RestAssured.basePath + "/item/{codigo}")
+            .then()
+                .log().all()
+                .statusCode(204);
+    }
+
+    @Test
+    public void aoExcluirItemPedidoInexistente_DeveRetornarRespostaComStatus400EMensagemDeErroCorrespodente() {
+        RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+                .pathParam("codigo", -1)
+            .when()
+                .delete(ApiUtils.urlBase + RestAssured.basePath + "/item/{codigo}")
+            .then()
+                .log().all()
+                .statusCode(400)
+                .body("erro", Matchers.is("Nao existe esse item de pedido"));
+    }
+
     public static PedidoDTO obterPedidoValido() throws Exception {
         List<ItemPedidoDTO> listaItens = new ArrayList<>();
         listaItens.add(obterItemPedidoValido(1));
