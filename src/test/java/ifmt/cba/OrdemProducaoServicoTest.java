@@ -240,6 +240,144 @@ public class OrdemProducaoServicoTest {
         Assertions.assertEquals(ordemProducaoExistente.getLink(), ordemProducao.getLink());
     }
 
+    @Test
+    public void aoAlterarItemOrdemProducao_DeveRetornarRespostaComStatus200ECComDadosDeRespostaCorretos() {
+        OrdemProducaoDTO ordemProducao = new OrdemProducaoDTO();
+        try {
+            ordemProducao = obterOrdemProducaoValida();
+        } catch (Exception e) {
+            Assertions.fail("Erro ao obter ordem de produção válida");
+        }
+
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter())
+        .create();
+
+        String jsonOrdemProducao = gson.toJson(ordemProducao);
+
+        // Adiciona a ordem de produção para depois alterar um item
+        Response responsePost = RestAssured.given()
+            .log().all()
+            .contentType("application/json")
+            .body(jsonOrdemProducao)
+            .when()
+            .post();
+        Assertions.assertEquals(200, responsePost.getStatusCode());
+        ordemProducao = gson.fromJson(responsePost.getBody().asString(), OrdemProducaoDTO.class);
+
+        ItemOrdemProducaoDTO itemOrdemProducaoAlterada = ordemProducao.getListaItens().get(0);
+        itemOrdemProducaoAlterada.setQuantidadePorcao(10);
+
+        try {
+            itemOrdemProducaoAlterada.setPreparoProduto(PreparoProdutoServicoTest.obterPreparoProdutoValidoDaApi(2));
+        } catch (Exception e) {
+            Assertions.fail("Erro ao obter preparo de produto válido da API");
+        }
+
+        String jsonItemOrdemProducaoAlterado = gson.toJson(itemOrdemProducaoAlterada);
+
+        RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+                .body(jsonItemOrdemProducaoAlterado)
+            .when()
+                .put(ApiUtils.urlBase + RestAssured.basePath + "/item")
+            .then()
+                .log().all()
+                .statusCode(200)
+                .body("codigo", Matchers.notNullValue())
+                .body("codigo", Matchers.greaterThan(0))
+                .body("quantidadePorcao", Matchers.is(itemOrdemProducaoAlterada.getQuantidadePorcao()))
+                .body("preparoProduto", Matchers.notNullValue())
+                .body("preparoProduto.codigo", Matchers.is(itemOrdemProducaoAlterada.getPreparoProduto().getCodigo()));
+    }
+
+    @Test
+    public void aoAlterarItemOrdemProducaoInexistente_DeveRetornarRespostaComStatus400EMensagemDeErroCorrespondente() {
+        ItemOrdemProducaoDTO itemOrdemProducao = new ItemOrdemProducaoDTO();
+        try {
+            itemOrdemProducao = obterItemOrdemProducaoValido(1);
+        } catch (Exception e) {
+            Assertions.fail("Erro ao obter item de ordem de produção válido");
+        }
+
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter())
+        .create();
+
+        String jsonItemOrdemProducao = gson.toJson(itemOrdemProducao);
+
+        RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+                .body(jsonItemOrdemProducao)
+            .when()
+                .put(ApiUtils.urlBase + RestAssured.basePath + "/item")
+            .then()
+                .log().all()
+                .statusCode(400)
+                .body("erro", Matchers.is("Nao existe esse item de ordem de producao"));
+    }
+
+    @Test
+    public void aoExcluirItemOrdemProducao_DeveRetornarRespostaComStatus204() {
+        OrdemProducaoDTO ordemProducao = new OrdemProducaoDTO();
+        try {
+            ordemProducao = obterOrdemProducaoValida();
+        } catch (Exception e) {
+            Assertions.fail("Erro ao obter ordem de produção válida");
+        }
+
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter())
+        .create();
+
+        String jsonOrdemProducao = gson.toJson(ordemProducao);
+
+        // Adiciona a ordem de produção para depois excluir um item
+        Response responsePost = RestAssured.given()
+            .log().all()
+            .contentType("application/json")
+            .body(jsonOrdemProducao)
+            .when()
+            .post();
+        Assertions.assertEquals(200, responsePost.getStatusCode());
+        ordemProducao = gson.fromJson(responsePost.getBody().asString(), OrdemProducaoDTO.class);
+
+        ItemOrdemProducaoDTO itemOrdemProducao = ordemProducao.getListaItens().get(0);
+
+        RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+                .pathParam("codigo", itemOrdemProducao.getCodigo())
+            .when()
+                .delete(ApiUtils.urlBase + RestAssured.basePath + "/item/{codigo}")
+            .then()
+                .log().all()
+                .statusCode(204);
+    }
+
+    @Test
+    public void aoExcluirItemOrdemProducaoInexistente_DeveRetornarRespostaComStatus400EMensagemDeErroCorrespondente() {
+        RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+                .pathParam("codigo", -1)
+            .when()
+                .delete(ApiUtils.urlBase + RestAssured.basePath + "/item/{codigo}")
+            .then()
+                .log().all()
+                .statusCode(400)
+                .body("erro", Matchers.is("Nao existe esse item de ordem de producao"));
+    }
+
     public static OrdemProducaoDTO obterOrdemProducaoValida() throws Exception {
         List<ItemOrdemProducaoDTO> listaItens = new ArrayList<>();
         listaItens.add(obterItemOrdemProducaoValido(1));
