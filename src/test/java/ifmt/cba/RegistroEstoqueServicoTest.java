@@ -2,12 +2,6 @@ package ifmt.cba;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -17,15 +11,12 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import ifmt.cba.dto.MovimentoEstoqueDTO;
-import ifmt.cba.dto.ProdutoDTO;
-import ifmt.cba.dto.QuantidadeDescartadaProdutoDTO;
 import ifmt.cba.dto.RegistroEstoqueDTO;
 import ifmt.cba.utils.ApiUtils;
 import ifmt.cba.utils.LocalDateAdapter;
 import ifmt.cba.utils.LocalTimeAdapter;
 import io.restassured.RestAssured;
 import io.restassured.http.Method;
-import io.restassured.response.Response;
 
 public class RegistroEstoqueServicoTest {
 
