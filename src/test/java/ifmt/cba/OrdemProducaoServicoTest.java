@@ -4,13 +4,14 @@ import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
+import com.google.gson.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-
+import java.lang.reflect.Type;
 import ifmt.cba.dto.EstadoOrdemProducaoDTO;
 import ifmt.cba.dto.ItemOrdemProducaoDTO;
 import ifmt.cba.dto.OrdemProducaoDTO;
+import ifmt.cba.dto.QuantidadeProduzidasProdutosDTO;
 import ifmt.cba.utils.ApiUtils;
 import ifmt.cba.utils.LocalDateAdapter;
 import ifmt.cba.utils.LocalTimeAdapter;
@@ -376,6 +377,102 @@ public class OrdemProducaoServicoTest {
                 .log().all()
                 .statusCode(400)
                 .body("erro", Matchers.is("Nao existe esse item de ordem de producao"));
+    }
+
+
+    @Test
+    public void aoProcessarOrdemProducao_DeveRetornarRespostaComStatus200() {
+        OrdemProducaoDTO ordemProducao = new OrdemProducaoDTO();
+        try {
+            ordemProducao = obterOrdemProducaoValida();
+        } catch (Exception e) {
+            Assertions.fail("Erro ao obter ordem de produção válida");
+        }
+
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter())
+        .create();
+
+        String jsonOrdemProducao = gson.toJson(ordemProducao);
+
+        // Adiciona a ordem de produção para depois processá-la
+        Response responsePost = RestAssured.given()
+            .log().all()
+            .contentType("application/json")
+            .body(jsonOrdemProducao)
+            .when()
+            .post();
+        Assertions.assertEquals(200, responsePost.getStatusCode());
+        ordemProducao = gson.fromJson(responsePost.getBody().asString(), OrdemProducaoDTO.class);
+
+        RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+                .pathParam("codigo", ordemProducao.getCodigo())
+            .when()
+                .put(ApiUtils.urlBase + RestAssured.basePath + "/{codigo}/processar-ordem")
+            .then()
+                .log().all()
+                .statusCode(200);
+    }
+
+    @Test
+    public void aoPesquisarProdutosMaisProduzidos_DeveRetornarRespostaComStatus200ECComDadosDeRespostaCorretos() {
+        Response response = RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+            .when()
+                .log().all()
+                .get(ApiUtils.urlBase + RestAssured.basePath + "/relatorio/produtos-mais-produzidos");
+
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter())
+        .create();
+
+        Assertions.assertEquals(200, response.getStatusCode());
+
+        Type listType = new TypeToken<List<QuantidadeProduzidasProdutosDTO>>(){}.getType();
+        List<QuantidadeProduzidasProdutosDTO> listaQuantidadeProduzidasProdutos = gson.fromJson(response.getBody().asString(), listType);
+        Assertions.assertTrue(listaQuantidadeProduzidasProdutos.size() > 0);
+        
+        // Verifica se a lista está ordenada do maior para o menor
+        int quantidadeAnterior = Integer.MAX_VALUE;
+        for (QuantidadeProduzidasProdutosDTO dto : listaQuantidadeProduzidasProdutos) {
+            Assertions.assertTrue(dto.getQuantidadeProduzida() <= quantidadeAnterior);
+            quantidadeAnterior = dto.getQuantidadeProduzida();
+        }
+    }
+
+    @Test
+    public void aoPesquisarProdutosMenosProduzidos_DeveRetornarRespostaComStatus200ECComDadosDeRespostaCorretos() {
+        Response response = RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+            .when()
+                .get(ApiUtils.urlBase + RestAssured.basePath + "/relatorio/produtos-menos-produzidos");
+
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter())
+        .create();
+
+        Assertions.assertEquals(200, response.getStatusCode());
+
+        Type listType = new TypeToken<List<QuantidadeProduzidasProdutosDTO>>(){}.getType();
+        List<QuantidadeProduzidasProdutosDTO> listaQuantidadeProduzidasProdutos = gson.fromJson(response.getBody().asString(), listType);
+        Assertions.assertTrue(listaQuantidadeProduzidasProdutos.size() > 0);
+        
+        // Verifica se a lista está ordenada do menor para o maior
+        int quantidadeAnterior = Integer.MIN_VALUE;
+        for (QuantidadeProduzidasProdutosDTO dto : listaQuantidadeProduzidasProdutos) {
+            Assertions.assertTrue(dto.getQuantidadeProduzida() >= quantidadeAnterior);
+            quantidadeAnterior = dto.getQuantidadeProduzida();
+        }
     }
 
     public static OrdemProducaoDTO obterOrdemProducaoValida() throws Exception {
