@@ -15,11 +15,14 @@ import ifmt.cba.dto.PedidoDTO;
 import ifmt.cba.utils.ApiUtils;
 import ifmt.cba.utils.LocalDateAdapter;
 import ifmt.cba.utils.LocalTimeAdapter;
+import ifmt.cba.utils.LocalTimeAdapter2;
 import io.restassured.RestAssured;
 import io.restassured.http.Method;
 import io.restassured.response.Response;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
@@ -399,6 +402,235 @@ public class PedidoServicoTest {
                 .statusCode(400)
                 .body("erro", Matchers.is("Nao existe esse item de pedido"));
     }
+
+    @Test
+    public void aoAlterarEstadoDoPedidoParaTodosOsEstadosPossiveis_DeveRetornarRespostaComStatus200ECComDadosDeRespostaCorretos() {
+        PedidoDTO pedido = new PedidoDTO();
+        try {
+            pedido = obterPedidoValido();
+        } catch (Exception e) {
+            Assertions.fail("Erro ao obter pedido valido");
+        }
+
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter())
+        .create();
+
+        String jsonPedido = gson.toJson(pedido);
+
+        // Adiciona o pedido para depois alterar o estado
+        Response responsePost = RestAssured.given()
+            .log().all()
+            .contentType("application/json")
+            .body(jsonPedido)
+            .when()
+            .post();
+        Assertions.assertEquals(200, responsePost.getStatusCode());
+        pedido = gson.fromJson(responsePost.getBody().asString(), PedidoDTO.class);
+
+        for (EstadoPedidoDTO estado : EstadoPedidoDTO.values()) {
+            if(estado == EstadoPedidoDTO.REGISTRADO) continue;
+
+            String stringEstado = estado.toString().toLowerCase();
+
+            RestAssured
+                .given()
+                    .log().all()
+                    .contentType("application/json")
+
+                .when()
+                    .put(ApiUtils.urlBase + RestAssured.basePath + "/" + pedido.getCodigo() + "/alterar-estado/" + stringEstado)
+                .then()
+                    .log().all()
+                    .statusCode(200)
+                    .body("codigo", Matchers.is(pedido.getCodigo()))
+                    .body("cliente.codigo", Matchers.is(pedido.getCliente().getCodigo()))
+                    .body("dataPedido", Matchers.is(pedido.getDataPedido().toString()))
+                    .body("horaPedido", Matchers.is(pedido.getHoraPedido().truncatedTo(ChronoUnit.MILLIS).toString()))
+                    .body("horaProducao", Matchers.is(pedido.getHoraProducao().truncatedTo(ChronoUnit.MILLIS).toString()))
+                    .body("horaPronto", Matchers.is(pedido.getHoraPronto().truncatedTo(ChronoUnit.MILLIS).toString()))
+                    .body("horaEntrega", Matchers.is(pedido.getHoraEntrega().truncatedTo(ChronoUnit.MILLIS).toString()))
+                    .body("horaFinalizado", Matchers.is(pedido.getHoraFinalizado().truncatedTo(ChronoUnit.MILLIS).toString()))
+                    .body("estado", Matchers.is(estado.toString()))
+                    .body("entregador.codigo", Matchers.is(pedido.getEntregador().getCodigo()))
+                    .body("listaItens", Matchers.hasSize(pedido.getListaItens().size()))
+                    .body("link", Matchers.notNullValue());
+        }
+    }
+
+    @Test
+    public void aoAlterarEstadoDoPedidoParaEstadoInvalido_DeveRetornarRespostaComStatus400EMensagemDeErroCorrespodente() {
+        
+        RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+
+            .when()
+                .put(ApiUtils.urlBase + RestAssured.basePath + "/1/alterar-estado/estadoInvalido")
+            .then()
+                .log().all()
+                .statusCode(400)
+                .body("erro", Matchers.is("Estado invalido!"));
+    }
+
+    @Test
+    public void aoPesquisarPedidosPelaDataAtualEPorEstadoRegistrado_DeveRetornarRespostaComStatus200ECComDadosDeRespostaCorretos() {
+        Response response = RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+                .queryParam("data", LocalDate.now().toString())
+                .queryParam("estado", EstadoPedidoDTO.REGISTRADO.toString().toLowerCase())
+            .when()
+                .get(ApiUtils.urlBase + RestAssured.basePath);
+            
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter2())
+        .create();
+
+        Assertions.assertEquals(200, response.getStatusCode());
+        PedidoDTO[] pedidos = gson.fromJson(response.getBody().asString(), PedidoDTO[].class);
+        for (PedidoDTO pedido : pedidos) {
+            Assertions.assertEquals(EstadoPedidoDTO.REGISTRADO, pedido.getEstado());
+            Assertions.assertEquals(LocalDate.now(), pedido.getDataPedido());
+        }
+
+        //Verifica se está em ordem cronológica
+        for (int i = 0; i < pedidos.length - 1; i++) {
+            Assertions.assertTrue(pedidos[i].getHoraPedido().isBefore(pedidos[i + 1].getHoraPedido()));
+        }
+    }
+
+    @Test
+    public void aoPesquisarPedidosPelaDataAtualEPorEstadoPronto_DeveRetornarRespostaComStatus200ECComDadosDeRespostaCorretos() {
+        Response response = RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+                .queryParam("data", LocalDate.now().toString())
+                .queryParam("estado", EstadoPedidoDTO.PRONTO.toString().toLowerCase())
+            .when()
+                .get(ApiUtils.urlBase + RestAssured.basePath);
+            
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter2())
+        .create();
+
+        Assertions.assertEquals(200, response.getStatusCode());
+        PedidoDTO[] pedidos = gson.fromJson(response.getBody().asString(), PedidoDTO[].class);
+        for (PedidoDTO pedido : pedidos) {
+            Assertions.assertEquals(EstadoPedidoDTO.PRONTO, pedido.getEstado());
+            Assertions.assertEquals(LocalDate.now(), pedido.getDataPedido());
+        }
+
+        //Verifica se está em ordem cronológica
+        for (int i = 0; i < pedidos.length - 1; i++) {
+            Assertions.assertTrue(pedidos[i].getHoraPedido().isBefore(pedidos[i + 1].getHoraPedido()));
+        }
+    }
+
+    @Test
+    public void aoPesquisarTotalizacaoDePedidosProduzidosNoPeriodo_DeveRetornarRespostaComStatus200ECComDadosDeRespostaCorretos() {
+        Response response = RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+                .queryParam("dataInicial", LocalDate.now().minusDays(1).toString())
+                .queryParam("dataFinal", LocalDate.now().toString())
+            .when()
+                .get(ApiUtils.urlBase + RestAssured.basePath + "/relatorio/totalizacao-pedido-produzidos-periodo");
+            
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter2())
+        .create();
+
+        Assertions.assertEquals(200, response.getStatusCode());
+        double totalizacao = gson.fromJson(response.getBody().asString(), Double.class);
+        Assertions.assertTrue(totalizacao > 0);
+    }
+
+    @Test
+    public void aoPesquisarMediaTempoEntreProntoEConcluido_DeveRetornarRespostaComStatus200ECComDadosDeRespostaCorretos() {
+        List<PedidoDTO> listaPedidoDTO = pesquisarPedidosPorEstado(EstadoPedidoDTO.CONCLUIDO);
+
+        double mediaTempoCalculado = listaPedidoDTO.stream()
+                .filter(pedido -> pedido.getHoraPronto() != null && pedido.getHoraFinalizado() != null)
+                .mapToLong(
+                        pedido -> Duration.between(pedido.getHoraPronto(), pedido.getHoraFinalizado()).toMinutes())
+                .average()
+                .orElse(0);
+
+        Response response = RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+            .when()
+                .get(ApiUtils.urlBase + RestAssured.basePath + "/relatorio/media-tempo-pronto-concluido");
+            
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter2())
+        .create();
+
+        Assertions.assertEquals(200, response.getStatusCode());
+        double mediaTempoObtido = gson.fromJson(response.getBody().asString(), Double.class);
+        Assertions.assertTrue(mediaTempoObtido >= 0);
+        Assertions.assertEquals(mediaTempoCalculado, mediaTempoObtido, 0.01);
+    }
+
+    @Test
+    public void aoPesquisarMediaTempoRegistradoEPronto_DeveRetornarRespostaComStatus200ECComDadosDeRespostaCorretos() {
+        List<PedidoDTO> listaPedidoDTO =  pesquisarPedidosPorEstado(EstadoPedidoDTO.PRONTO);
+        listaPedidoDTO.addAll(pesquisarPedidosPorEstado(EstadoPedidoDTO.ENTREGA));
+        listaPedidoDTO.addAll(pesquisarPedidosPorEstado(EstadoPedidoDTO.CONCLUIDO));
+
+        double mediaTempoCalculado = listaPedidoDTO.stream()
+                .filter(pedido -> pedido.getHoraPedido() != null && pedido.getHoraPronto() != null)
+                .mapToLong(pedido -> Duration.between(pedido.getHoraPedido(), pedido.getHoraPronto()).toMinutes())
+                .average()
+                .orElse(0);
+
+        Response response = RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+            .when()
+                .get(ApiUtils.urlBase + RestAssured.basePath + "/relatorio/media-tempo-registrado-pronto");
+            
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter2())
+        .create();
+
+        Assertions.assertEquals(200, response.getStatusCode());
+        double mediaTempoObtido = gson.fromJson(response.getBody().asString(), Double.class);
+        Assertions.assertTrue(mediaTempoObtido >= 0);
+        Assertions.assertEquals(mediaTempoCalculado, mediaTempoObtido, 0.01);
+    }
+
+    public static List<PedidoDTO> pesquisarPedidosPorEstado(EstadoPedidoDTO estado) {
+        Response response = RestAssured
+            .given()
+                .log().all()
+                .contentType("application/json")
+                .pathParam("estado", estado.toString().toLowerCase())
+            .when()
+                .get(ApiUtils.urlBase + RestAssured.basePath + "/buscar-por-estado/{estado}");
+            
+        Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter())
+        .create();
+    
+        Assertions.assertEquals(200, response.getStatusCode());
+        PedidoDTO[] pedidos = gson.fromJson(response.getBody().asString(), PedidoDTO[].class);
+        return new ArrayList<>(Arrays.asList(pedidos));  // Garante uma lista mutável
+    }    
 
     public static PedidoDTO obterPedidoValido() throws Exception {
         List<ItemPedidoDTO> listaItens = new ArrayList<>();
