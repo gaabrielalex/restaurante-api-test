@@ -10,8 +10,10 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
 public class LocalTimeAdapter extends TypeAdapter<LocalTime> {
+
     private static final DateTimeFormatter formatterWithMillis = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
     private static final DateTimeFormatter formatterWithoutMillis = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final DateTimeFormatter formatterWithTwoMillis = DateTimeFormatter.ofPattern("HH:mm:ss.SS");
 
     @Override
     public void write(JsonWriter out, LocalTime value) throws IOException {
@@ -25,17 +27,18 @@ public class LocalTimeAdapter extends TypeAdapter<LocalTime> {
     @Override
     public LocalTime read(JsonReader in) throws IOException {
         String time = in.nextString();
+        // Tenta parsear com diferentes formatos
         try {
-            // Tenta parsear com milissegundos
             return LocalTime.parse(time, formatterWithMillis);
         } catch (DateTimeParseException e1) {
             try {
-                // Tenta parsear sem milissegundos
-                LocalTime parsedTime = LocalTime.parse(time, formatterWithoutMillis);
-                // Adiciona três casas decimais ".000" se não houver milissegundos
-                return LocalTime.parse(parsedTime.format(formatterWithMillis), formatterWithMillis);
+                return LocalTime.parse(time, formatterWithTwoMillis);
             } catch (DateTimeParseException e2) {
-                throw new IOException("Failed to parse LocalTime: " + time, e2);
+                try {
+                    return LocalTime.parse(time, formatterWithoutMillis);
+                } catch (DateTimeParseException e3) {
+                    throw new IOException("Failed to parse LocalTime: " + time, e3);
+                }
             }
         }
     }

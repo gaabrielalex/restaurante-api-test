@@ -346,7 +346,12 @@ public class OrdemProducaoServicoTest {
             .contentType("application/json")
             .body(jsonOrdemProducao)
             .when()
-            .post();
+            .log().all()
+            .post()
+            .then()
+                .log().all()
+                .extract().response();
+
         Assertions.assertEquals(200, responsePost.getStatusCode());
         ordemProducao = gson.fromJson(responsePost.getBody().asString(), OrdemProducaoDTO.class);
 

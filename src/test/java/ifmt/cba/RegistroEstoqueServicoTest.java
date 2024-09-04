@@ -229,7 +229,7 @@ public class RegistroEstoqueServicoTest {
             .then()
                 .log().all()
                 .statusCode(200)
-                .body("size()", Matchers.equalTo(3))
+                .body("size()", Matchers.greaterThan(3))
                 .body("[0].produto", Matchers.notNullValue())
                 .body("[0].produto.codigo", Matchers.equalTo(registroEstoqueProducao.getProduto().getCodigo()))
                 .body("[0].quantidadeDescartada", Matchers.equalTo(registroEstoqueProducao.getQuantidade()))

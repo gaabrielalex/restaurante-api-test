@@ -484,7 +484,10 @@ public class PedidoServicoTest {
                 .queryParam("data", LocalDate.now().toString())
                 .queryParam("estado", EstadoPedidoDTO.REGISTRADO.toString().toLowerCase())
             .when()
-                .get(ApiUtils.urlBase + RestAssured.basePath);
+                .get(ApiUtils.urlBase + RestAssured.basePath)
+            .then()
+                .log().all()
+                .extract().response();
             
         Gson gson = new GsonBuilder()
             .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
@@ -500,7 +503,8 @@ public class PedidoServicoTest {
 
         //Verifica se está em ordem cronológica
         for (int i = 0; i < pedidos.length - 1; i++) {
-            Assertions.assertTrue(pedidos[i].getHoraPedido().isBefore(pedidos[i + 1].getHoraPedido()));
+            Assertions.assertTrue(pedidos[i].getHoraPedido().isBefore(pedidos[i + 1].getHoraPedido()), 
+            "Pedido " + pedidos[i].getCodigo() + " não está em ordem cronológica. O horário do pedido é " + pedidos[i].getHoraPedido() + " e o horário do próximo pedido é " + pedidos[i + 1].getHoraPedido());
         }
     }
 
@@ -604,7 +608,7 @@ public class PedidoServicoTest {
             
         Gson gson = new GsonBuilder()
             .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
-            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter2())
+            .registerTypeAdapter(LocalTime.class, new LocalTimeAdapter())
         .create();
 
         Assertions.assertEquals(200, response.getStatusCode());
